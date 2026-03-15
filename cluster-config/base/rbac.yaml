@@ -1,0 +1,238 @@
+# =============================================================
+# CLUSTER ROLES (defined once, reused across all namespaces)
+# =============================================================
+
+# Read-only developer role — kubectl get/describe/logs only
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: retail-store-dev-readonly
+rules:
+- apiGroups: ["", "apps", "batch"]
+  resources:
+    - pods
+    - pods/log
+    - events
+    - services
+    - configmaps
+    - deployments
+    - daemonsets
+    - statefulsets
+    - replicasets
+    - jobs
+    - cronjobs
+  verbs:
+    - get
+    - list
+    - watch
+
+---
+# Full-access ArgoCD deployer role — creates/updates/deletes everything
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: retail-store-argocd-deployer
+rules:
+- apiGroups: ["", "apps", "batch"]
+  resources:
+    - pods
+    - pods/log
+    - events
+    - services
+    - secrets
+    - serviceaccounts
+    - resourcequotas
+    - limitranges
+    - configmaps
+    - persistentvolumeclaims
+    - deployments
+    - daemonsets
+    - statefulsets
+    - replicasets
+    - jobs
+    - cronjobs
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+- apiGroups: ["networking.k8s.io"]
+  resources:
+    - ingresses
+    - networkpolicies
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+- apiGroups: ["autoscaling"]
+  resources:
+    - horizontalpodautoscalers
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+
+# =============================================================
+# ROLEBINDINGS (one pair per namespace — developer + argocd)
+# =============================================================
+
+# --- ui-dev ---
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-readonly
+  namespace: ui-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: retail-store-dev-readonly
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: retail-store-developers
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-deployer
+  namespace: ui-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: retail-store-argocd-deployer
+subjects:
+- kind: ServiceAccount
+  name: argocd-application-controller
+  namespace: argocd
+
+# --- catalog-dev ---
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-readonly
+  namespace: catalog-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: retail-store-dev-readonly
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: retail-store-developers
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-deployer
+  namespace: catalog-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: retail-store-argocd-deployer
+subjects:
+- kind: ServiceAccount
+  name: argocd-application-controller
+  namespace: argocd
+
+# --- cart-dev ---
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-readonly
+  namespace: cart-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: retail-store-dev-readonly
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: retail-store-developers
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-deployer
+  namespace: cart-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: retail-store-argocd-deployer
+subjects:
+- kind: ServiceAccount
+  name: argocd-application-controller
+  namespace: argocd
+
+# --- checkout-dev ---
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-readonly
+  namespace: checkout-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: retail-store-dev-readonly
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: retail-store-developers
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-deployer
+  namespace: checkout-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: retail-store-argocd-deployer
+subjects:
+- kind: ServiceAccount
+  name: argocd-application-controller
+  namespace: argocd
+
+# --- orders-dev ---
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-readonly
+  namespace: orders-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: retail-store-dev-readonly
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: retail-store-developers
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-deployer
+  namespace: orders-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: retail-store-argocd-deployer
+subjects:
+- kind: ServiceAccount
+  name: argocd-application-controller
+  namespace: argocd
