@@ -13,3 +13,27 @@ metadata:
   labels:
     app.kubernetes.io/part-of: retail-store
     environment: dev
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cart-dev
+  labels:
+    app.kubernetes.io/part-of: retail-store
+    environment: dev
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: checkout-dev
+  labels:
+    app.kubernetes.io/part-of: retail-store
+    environment: dev
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: orders-dev
+  labels:
+    app.kubernetes.io/part-of: retail-store
+    environment: dev            

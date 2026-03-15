@@ -1,0 +1,202 @@
+# =============================================================
+# RESOURCE QUOTAS — total budget per namespace
+#
+# Dev environment sizing (2x t3.medium nodes):
+#   Total cluster: 4 vCPU, 8GB RAM
+#   System overhead: ~1.5 vCPU, ~2.5GB RAM
+#   Available for apps: ~2.5 vCPU, ~5.5GB RAM across 5 namespaces
+# =============================================================
+
+# --- ui-dev ---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: compute-quota
+  namespace: ui-dev
+spec:
+  hard:
+    requests.cpu: "500m"
+    requests.memory: "1Gi"
+    limits.memory: "2Gi"
+    pods: "10"
+    services: "5"
+
+# --- catalog-dev ---
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: compute-quota
+  namespace: catalog-dev
+spec:
+  hard:
+    requests.cpu: "500m"
+    requests.memory: "1Gi"
+    limits.memory: "2Gi"
+    pods: "10"
+    services: "5"
+
+# --- cart-dev ---
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: compute-quota
+  namespace: cart-dev
+spec:
+  hard:
+    requests.cpu: "500m"
+    requests.memory: "1Gi"
+    limits.memory: "2Gi"
+    pods: "10"
+    services: "5"
+
+# --- checkout-dev ---
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: compute-quota
+  namespace: checkout-dev
+spec:
+  hard:
+    requests.cpu: "500m"
+    requests.memory: "1Gi"
+    limits.memory: "2Gi"
+    pods: "10"
+    services: "5"
+
+# --- orders-dev ---
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: compute-quota
+  namespace: orders-dev
+spec:
+  hard:
+    requests.cpu: "500m"
+    requests.memory: "1Gi"
+    limits.memory: "2Gi"
+    pods: "10"
+    services: "5"
+
+# =============================================================
+# LIMIT RANGES — defaults and constraints per container
+#
+# NOTE: No default CPU limit set intentionally.
+#   CPU is compressible — throttling causes hidden latency.
+#   Pods can burst above CPU requests when node has spare CPU.
+#   Memory limits ARE set because memory is incompressible —
+#   exceeding memory limit = OOMKilled (pod dies).
+# =============================================================
+
+# --- ui-dev ---
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: container-limits
+  namespace: ui-dev
+spec:
+  limits:
+    - type: Container
+      default:
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+      max:
+        cpu: "1"
+        memory: "1Gi"
+
+# --- catalog-dev ---
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: container-limits
+  namespace: catalog-dev
+spec:
+  limits:
+    - type: Container
+      default:
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+      max:
+        cpu: "1"
+        memory: "1Gi"
+
+# --- cart-dev ---
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: container-limits
+  namespace: cart-dev
+spec:
+  limits:
+    - type: Container
+      default:
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+      max:
+        cpu: "1"
+        memory: "1Gi"
+
+# --- checkout-dev ---
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: container-limits
+  namespace: checkout-dev
+spec:
+  limits:
+    - type: Container
+      default:
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+      max:
+        cpu: "1"
+        memory: "1Gi"
+
+# --- orders-dev ---
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: container-limits
+  namespace: orders-dev
+spec:
+  limits:
+    - type: Container
+      default:
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+      max:
+        cpu: "1"
+        memory: "1Gi"

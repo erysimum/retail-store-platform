@@ -1,0 +1,399 @@
+# =============================================================
+# DEFAULT DENY — applied to every namespace
+# Blocks ALL ingress and egress unless explicitly allowed
+# =============================================================
+
+# --- ui-dev: default deny ---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: ui-dev
+spec:
+  podSelector: {}          # empty = applies to ALL pods in namespace
+  policyTypes:
+    - Ingress
+    - Egress
+
+# --- catalog-dev: default deny ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: catalog-dev
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+# --- cart-dev: default deny ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: cart-dev
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+# --- checkout-dev: default deny ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: checkout-dev
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+# --- orders-dev: default deny ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: orders-dev
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+# =============================================================
+# ALLOW RULES — explicit traffic patterns
+#
+# Traffic flow:
+#   External → UI (via load balancer)
+#   UI → Catalog, Cart, Checkout (UI orchestrates all backends)
+#   Checkout → Orders (placing an order)
+#   Each service → its own database (DNS egress needed)
+#
+# =============================================================
+
+# --- UI: allow ingress from load balancer / external ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ui-ingress
+  namespace: ui-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: ui
+  policyTypes:
+    - Ingress
+  ingress:
+    - {}                   # allow from anywhere (load balancer)
+
+# --- UI: allow egress to catalog, cart, checkout + DNS ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ui-egress
+  namespace: ui-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: ui
+  policyTypes:
+    - Egress
+  egress:
+    # DNS resolution (kube-dns in kube-system)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Catalog service
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: catalog-dev
+          podSelector:
+            matchLabels:
+              app: catalog
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Cart service
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cart-dev
+          podSelector:
+            matchLabels:
+              app: cart
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Checkout service
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: checkout-dev
+          podSelector:
+            matchLabels:
+              app: checkout
+      ports:
+        - protocol: TCP
+          port: 8080
+
+# --- Catalog: allow ingress from UI only ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-catalog-ingress
+  namespace: catalog-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: catalog
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ui-dev
+          podSelector:
+            matchLabels:
+              app: ui
+      ports:
+        - protocol: TCP
+          port: 8080
+
+# --- Catalog: allow egress to DNS + database (AWS RDS) ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-catalog-egress
+  namespace: catalog-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: catalog
+  policyTypes:
+    - Egress
+  egress:
+    # DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # MySQL/MariaDB on AWS (RDS endpoint via private subnet)
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/16    # VPC CIDR — covers RDS in private subnets
+      ports:
+        - protocol: TCP
+          port: 3306
+
+# --- Cart: allow ingress from UI only ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-cart-ingress
+  namespace: cart-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: cart
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ui-dev
+          podSelector:
+            matchLabels:
+              app: ui
+      ports:
+        - protocol: TCP
+          port: 8080
+
+# --- Cart: allow egress to DNS + DynamoDB (AWS endpoint) ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-cart-egress
+  namespace: cart-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: cart
+  policyTypes:
+    - Egress
+  egress:
+    # DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # DynamoDB — accessed via HTTPS through NAT gateway
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0      # DynamoDB is a regional AWS service endpoint
+      ports:
+        - protocol: TCP
+          port: 443
+
+# --- Checkout: allow ingress from UI only ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-checkout-ingress
+  namespace: checkout-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: checkout
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ui-dev
+          podSelector:
+            matchLabels:
+              app: ui
+      ports:
+        - protocol: TCP
+          port: 8080
+
+# --- Checkout: allow egress to Orders + DNS + Redis ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-checkout-egress
+  namespace: checkout-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: checkout
+  policyTypes:
+    - Egress
+  egress:
+    # DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Orders service
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: orders-dev
+          podSelector:
+            matchLabels:
+              app: orders
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Redis on AWS (ElastiCache in VPC)
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/16
+      ports:
+        - protocol: TCP
+          port: 6379
+
+# --- Orders: allow ingress from Checkout only ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-orders-ingress
+  namespace: orders-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: orders
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: checkout-dev
+          podSelector:
+            matchLabels:
+              app: checkout
+      ports:
+        - protocol: TCP
+          port: 8080
+
+# --- Orders: allow egress to DNS + PostgreSQL + RabbitMQ ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-orders-egress
+  namespace: orders-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: orders
+  policyTypes:
+    - Egress
+  egress:
+    # DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # PostgreSQL on AWS (RDS in VPC)
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/16
+      ports:
+        - protocol: TCP
+          port: 5432
+    # RabbitMQ (Amazon MQ or in-cluster)
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/16
+      ports:
+        - protocol: TCP
+          port: 5672
