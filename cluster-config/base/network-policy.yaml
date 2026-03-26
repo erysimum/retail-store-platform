@@ -1,6 +1,6 @@
 # =============================================================
 # DEFAULT DENY — applied to every namespace
-# Blocks ALL ingress and egress unless explicitly allowed
+# Blocks ALL ingress and egress for ALL pods (app + database)
 # =============================================================
 
 # --- ui-dev: default deny ---
@@ -10,7 +10,7 @@ metadata:
   name: default-deny-all
   namespace: ui-dev
 spec:
-  podSelector: {}          # empty = applies to ALL pods in namespace
+  podSelector: {}
   policyTypes:
     - Ingress
     - Egress
@@ -68,14 +68,11 @@ spec:
     - Egress
 
 # =============================================================
-# ALLOW RULES — explicit traffic patterns
+# UI-DEV NAMESPACE
+# UI has no database. Receives external traffic, calls backends.
 #
-# Traffic flow:
-#   External → UI (via load balancer)
-#   UI → Catalog, Cart, Checkout (UI orchestrates all backends)
-#   Checkout → Orders (placing an order)
-#   Each service → its own database (DNS egress needed)
-#
+# Ingress: from anywhere (NLB → NGINX → UI)
+# Egress:  to catalog, cart, checkout + DNS
 # =============================================================
 
 # --- UI: allow ingress from load balancer / external ---
@@ -92,7 +89,7 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    - {}                   # allow from anywhere (load balancer)
+    - {}
 
 # --- UI: allow egress to catalog, cart, checkout + DNS ---
 ---
@@ -118,7 +115,7 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # Catalog service
+    # Catalog service (cross-namespace)
     - to:
         - namespaceSelector:
             matchLabels:
@@ -129,7 +126,7 @@ spec:
       ports:
         - protocol: TCP
           port: 8080
-    # Cart service
+    # Cart service (cross-namespace)
     - to:
         - namespaceSelector:
             matchLabels:
@@ -140,7 +137,7 @@ spec:
       ports:
         - protocol: TCP
           port: 8080
-    # Checkout service
+    # Checkout service (cross-namespace)
     - to:
         - namespaceSelector:
             matchLabels:
@@ -152,7 +149,15 @@ spec:
         - protocol: TCP
           port: 8080
 
-# --- Catalog: allow ingress from UI only ---
+# =============================================================
+# CATALOG-DEV NAMESPACE
+# Catalog app pod + catalog-db (MariaDB) pod
+#
+# catalog pod: ingress from UI, egress to catalog-db + DNS
+# catalog-db pod: ingress from catalog pod only
+# =============================================================
+
+# --- Catalog app: allow ingress from UI ---
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -177,7 +182,7 @@ spec:
         - protocol: TCP
           port: 8080
 
-# --- Catalog: allow egress to DNS + database (AWS RDS) ---
+# --- Catalog app: allow egress to catalog-db + DNS ---
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -201,15 +206,46 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # MySQL/MariaDB on AWS (RDS endpoint via private subnet)
+    # MariaDB pod (same namespace — no namespaceSelector needed)
     - to:
-        - ipBlock:
-            cidr: 10.0.0.0/16    # VPC CIDR — covers RDS in private subnets
+        - podSelector:
+            matchLabels:
+              app: catalog-db
       ports:
         - protocol: TCP
           port: 3306
 
-# --- Cart: allow ingress from UI only ---
+# --- catalog-db: allow ingress from catalog app pod only ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-catalog-db-ingress
+  namespace: catalog-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: catalog-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: catalog
+      ports:
+        - protocol: TCP
+          port: 3306
+
+# =============================================================
+# CART-DEV NAMESPACE
+# Cart app pod + carts-db (DynamoDB Local) pod
+#
+# cart pod: ingress from UI, egress to carts-db + DNS
+# carts-db pod: ingress from cart pod only
+# =============================================================
+
+# --- Cart app: allow ingress from UI ---
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -234,7 +270,7 @@ spec:
         - protocol: TCP
           port: 8080
 
-# --- Cart: allow egress to DNS + DynamoDB (AWS endpoint) ---
+# --- Cart app: allow egress to carts-db + DNS ---
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -258,15 +294,46 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # DynamoDB — accessed via HTTPS through NAT gateway
+    # DynamoDB Local pod (same namespace)
     - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0      # DynamoDB is a regional AWS service endpoint
+        - podSelector:
+            matchLabels:
+              app: carts-db
       ports:
         - protocol: TCP
-          port: 443
+          port: 8000
 
-# --- Checkout: allow ingress from UI only ---
+# --- carts-db: allow ingress from cart app pod only ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-carts-db-ingress
+  namespace: cart-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: carts-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: cart
+      ports:
+        - protocol: TCP
+          port: 8000
+
+# =============================================================
+# CHECKOUT-DEV NAMESPACE
+# Checkout app pod + checkout-redis (Redis) pod
+#
+# checkout pod: ingress from UI, egress to orders + checkout-redis + DNS
+# checkout-redis pod: ingress from checkout pod only
+# =============================================================
+
+# --- Checkout app: allow ingress from UI ---
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -291,7 +358,7 @@ spec:
         - protocol: TCP
           port: 8080
 
-# --- Checkout: allow egress to Orders + DNS + Redis ---
+# --- Checkout app: allow egress to orders + checkout-redis + DNS ---
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -315,7 +382,7 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # Orders service
+    # Orders service (cross-namespace)
     - to:
         - namespaceSelector:
             matchLabels:
@@ -326,15 +393,46 @@ spec:
       ports:
         - protocol: TCP
           port: 8080
-    # Redis on AWS (ElastiCache in VPC)
+    # Redis pod (same namespace)
     - to:
-        - ipBlock:
-            cidr: 10.0.0.0/16
+        - podSelector:
+            matchLabels:
+              app: checkout-redis
       ports:
         - protocol: TCP
           port: 6379
 
-# --- Orders: allow ingress from Checkout only ---
+# --- checkout-redis: allow ingress from checkout app pod only ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-checkout-redis-ingress
+  namespace: checkout-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: checkout-redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: checkout
+      ports:
+        - protocol: TCP
+          port: 6379
+
+# =============================================================
+# ORDERS-DEV NAMESPACE
+# Orders app pod + orders-db (PostgreSQL) pod
+#
+# orders pod: ingress from checkout, egress to orders-db + DNS
+# orders-db pod: ingress from orders pod only
+# =============================================================
+
+# --- Orders app: allow ingress from checkout ---
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -359,7 +457,7 @@ spec:
         - protocol: TCP
           port: 8080
 
-# --- Orders: allow egress to DNS + PostgreSQL + RabbitMQ ---
+# --- Orders app: allow egress to orders-db + DNS ---
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -383,17 +481,33 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # PostgreSQL on AWS (RDS in VPC)
+    # PostgreSQL pod (same namespace)
     - to:
-        - ipBlock:
-            cidr: 10.0.0.0/16
+        - podSelector:
+            matchLabels:
+              app: orders-db
       ports:
         - protocol: TCP
           port: 5432
-    # RabbitMQ (Amazon MQ or in-cluster)
-    - to:
-        - ipBlock:
-            cidr: 10.0.0.0/16
+
+# --- orders-db: allow ingress from orders app pod only ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-orders-db-ingress
+  namespace: orders-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: orders-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: orders
       ports:
         - protocol: TCP
-          port: 5672
+          port: 5432
