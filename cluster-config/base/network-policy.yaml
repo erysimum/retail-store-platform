@@ -511,3 +511,114 @@ spec:
       ports:
         - protocol: TCP
           port: 5432
+
+
+
+
+
+# -----------------------------------------------
+# IMPORTANT: ADD THIS to retail-store-platform/
+#   cluster-config/base/network-policy.yaml
+#
+# WHY: Your existing NetworkPolicy has default-deny-all
+# in every namespace. Prometheus (in monitoring namespace)
+# needs to reach INTO each app namespace to scrape metrics.
+# Without this, Prometheus sees 0 targets — all scrapes
+# timeout because NetworkPolicy blocks the traffic.
+#
+# Add one of these per app namespace (ui-dev, catalog-dev, etc.)
+# -----------------------------------------------
+
+# Allow Prometheus to scrape metrics from app pods
+# Prometheus connects to port 8080 (where /metrics or /actuator/prometheus lives)
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: ui-dev
+spec:
+  podSelector: {}       # applies to ALL pods in this namespace
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8080     # app metrics port
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: catalog-dev
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: cart-dev
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: checkout-dev
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: orders-dev
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8080
+          
