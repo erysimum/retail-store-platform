@@ -6,7 +6,7 @@ resources:
   - rbac.yaml
   - network-policy.yaml
   - resource-quota.yaml
-  - storage-class.yaml
+ 
 
 labels:
   - pairs:
