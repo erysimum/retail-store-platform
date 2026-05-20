@@ -622,3 +622,67 @@ spec:
         - protocol: TCP
           port: 8080
           
+
+
+   # =============================================================
+# ISTIO SIDECAR — Allow Envoy proxies to reach istiod
+#
+# When a namespace has istio-injection=enabled, every pod gets an
+# Envoy sidecar that needs to reach istiod (the control plane) in
+# istio-system to receive its configuration.
+#
+# Without these rules, default-deny-all blocks the sidecar's
+# outbound connection to istiod, so the sidecar never gets its
+# config and the pod's traffic breaks.
+#
+# Only ui-dev and catalog-dev are meshed (PR #6 scope).
+# =============================================================
+
+# --- ui-dev: allow egress to istiod ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-istio-control-plane-egress
+  namespace: ui-dev
+spec:
+  podSelector: {}       # all pods in ui-dev (so sidecars are covered)
+  policyTypes:
+    - Egress
+  egress:
+    # istiod (control plane) in istio-system namespace
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - protocol: TCP
+          port: 15012      # istiod XDS discovery (gRPC)
+        - protocol: TCP
+          port: 15010      # istiod legacy plaintext (some sidecars still use)
+        - protocol: TCP
+          port: 15014      # istiod monitoring
+
+# --- catalog-dev: allow egress to istiod ---
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-istio-control-plane-egress
+  namespace: catalog-dev
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - protocol: TCP
+          port: 15012
+        - protocol: TCP
+          port: 15010
+        - protocol: TCP
+          port: 15014       
