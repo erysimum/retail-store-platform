@@ -23,6 +23,7 @@ metadata:
   labels:
     app.kubernetes.io/part-of: retail-store
     environment: dev
+    istio-injection: enabled 
 ---
 apiVersion: v1
 kind: Namespace
@@ -31,6 +32,7 @@ metadata:
   labels:
     app.kubernetes.io/part-of: retail-store
     environment: dev
+    istio-injection: enabled 
 ---
 apiVersion: v1
 kind: Namespace
@@ -38,4 +40,5 @@ metadata:
   name: orders-dev
   labels:
     app.kubernetes.io/part-of: retail-store
-    environment: dev            
+    environment: dev  
+    istio-injection: enabled           
