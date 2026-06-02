@@ -107,10 +107,10 @@ spec:
         cpu: "100m"
         memory: "128Mi"
       min:
-        cpu: "50m"
-        memory: "64Mi"
+        cpu: "10m"
+        memory: "32Mi"
       max:
-        cpu: "1"
+        cpu: "2"
         memory: "1Gi"
 
 # --- catalog-dev ---
@@ -129,10 +129,10 @@ spec:
         cpu: "100m"
         memory: "128Mi"
       min:
-        cpu: "50m"
-        memory: "64Mi"
+        cpu: "10m"
+        memory: "32Mi"
       max:
-        cpu: "1"
+        cpu: "2"
         memory: "1Gi"
 
 # --- cart-dev ---
@@ -151,10 +151,10 @@ spec:
         cpu: "100m"
         memory: "128Mi"
       min:
-        cpu: "50m"
-        memory: "64Mi"
+        cpu: "10m"
+        memory: "32Mi"
       max:
-        cpu: "1"
+        cpu: "2"
         memory: "1Gi"
 
 # --- checkout-dev ---
@@ -173,10 +173,10 @@ spec:
         cpu: "100m"
         memory: "128Mi"
       min:
-        cpu: "50m"
-        memory: "64Mi"
+        cpu: "10m"
+        memory: "32Mi"
       max:
-        cpu: "1"
+        cpu: "2"
         memory: "1Gi"
 
 # --- orders-dev ---
@@ -195,8 +195,8 @@ spec:
         cpu: "100m"
         memory: "128Mi"
       min:
-        cpu: "50m"
-        memory: "64Mi"
+        cpu: "10m"
+        memory: "32Mi"
       max:
-        cpu: "1"
+        cpu: "2"
         memory: "1Gi"
